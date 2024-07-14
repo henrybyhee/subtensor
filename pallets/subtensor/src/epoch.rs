@@ -4,6 +4,22 @@ use frame_support::IterableStorageDoubleMap;
 use sp_std::vec;
 use substrate_fixed::types::{I32F32, I64F64, I96F32};
 
+#[derive(Decode, Encode, PartialEq, Eq, Clone, Debug)]
+pub enum EpochInfo<T: Config> {
+    Emission(Vec<(T::AccountId, u64, u64)>),
+    Incentive(Vec<I32F32>)
+}
+
+impl<T: Config> EpochInfo<T> {
+    pub fn as_emission(&self) -> Option<Vec<(T::AccountId, u64, u64)>> {
+        match self {
+            EpochInfo::Emission(emission) => Some(emission.to_vec()),
+            _ => None,
+        }
+    
+    }
+}
+
 impl<T: Config> Pallet<T> {
     /// Calculates reward consensus and returns the emissions for uids/hotkeys in a given `netuid`.
     /// (Dense version used only for testing purposes.)
@@ -348,7 +364,7 @@ impl<T: Config> Pallet<T> {
     ///     - Print debugging outputs.
     ///
     #[allow(clippy::indexing_slicing)]
-    pub fn epoch(netuid: u16, rao_emission: u64) -> Vec<(T::AccountId, u64, u64)> {
+    pub fn epoch(netuid: u16, maybe_return_incentives: Option<bool>) -> EpochInfo<T> {
         // Get subnetwork size.
         let n: u16 = Self::get_subnetwork_n(netuid);
         log::trace!("Number of Neurons in Network: {:?}", n);
@@ -501,6 +517,9 @@ impl<T: Config> Pallet<T> {
         inplace_normalize(&mut ranks); // range: I32F32(0, 1)
         let incentive: Vec<I32F32> = ranks.clone();
         log::trace!("Incentive (=Rank): {:?}", &incentive);
+        if maybe_return_incentives.unwrap_or(false) {
+            return EpochInfo::Incentive(incentive);
+        }
 
         // =========================
         // == Bonds and Dividends ==
@@ -578,6 +597,7 @@ impl<T: Config> Pallet<T> {
         }
 
         // Compute rao based emission scores. range: I96F32(0, rao_emission)
+        let rao_emission = PendingEmission::<T>::get(netuid);
         let float_rao_emission: I96F32 = I96F32::from_num(rao_emission);
 
         let server_emission: Vec<I96F32> = normalized_server_emission
@@ -691,7 +711,7 @@ impl<T: Config> Pallet<T> {
             });
 
         // Emission tuples ( hotkeys, server_emission, validator_emission )
-        hotkeys
+        EpochInfo::Emission(hotkeys
             .into_iter()
             .map(|(uid_i, hotkey)| {
                 (
@@ -700,7 +720,7 @@ impl<T: Config> Pallet<T> {
                     validator_emission[uid_i as usize],
                 )
             })
-            .collect()
+            .collect())
     }
 
     pub fn get_float_rho(netuid: u16) -> I32F32 {

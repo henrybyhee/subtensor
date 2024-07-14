@@ -180,7 +180,7 @@ impl<T: Config> Pallet<T> {
 
             // --- 8. Run the epoch mechanism and return emission tuples for hotkeys in the network.
             let emission_tuples_this_block: Vec<(T::AccountId, u64, u64)> =
-                Self::epoch(netuid, emission_to_drain);
+                Self::epoch(netuid, None).as_emission().unwrap();
             log::debug!(
                 "netuid_i: {:?} emission_to_drain: {:?} ",
                 netuid,

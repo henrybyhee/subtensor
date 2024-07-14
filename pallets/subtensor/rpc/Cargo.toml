@@ -23,6 +23,7 @@ sp-api = { workspace = true }
 sp-blockchain = { workspace = true }
 sp-rpc = { workspace = true }
 sp-runtime = { workspace = true }
+log = { workspace = true }
 
 # local packages
 
